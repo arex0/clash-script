@@ -1,0 +1,189 @@
+#!/bin/bash
+architecture=
+install_dir=/usr/local/bin
+message(){
+	tput cup 7 $((49-${#1}))
+	tput rev #reverse color
+	echo $1
+	tput sgr0
+	tput cup 8 24
+	tput civis #cursor invisible
+	read -n 1 -rsp "Press any key to continue"
+	tput cnorm #cursor visible
+}
+
+tput smcup #save then clean screen
+trap "tput rmcup&&exit" 2 9 #recover screen
+while :
+do	
+	tput clear
+	tput cup 1 16; #set cursor postion
+	tput setaf 3 #set ANSI escape foreground
+	echo Clash-Script by arex0
+	tput sgr0 #set default terminal color
+
+	tput cup 3 20
+	tput rev #reverse color
+	echo "M A I N - M E N U"
+	tput sgr0
+
+	tput cup  6	16;	echo "1. Run in Background"
+	tput cup  7	16;	echo "2. Run in Terminal"
+	tput cup  8	16;	echo "3. Stop"
+	tput cup  9	16;	echo "4. Check Updates"
+	tput cup 10	16;	echo "5. Rollback"
+	tput cup 11	16;	echo "6. Install/Uninstall"
+	tput cup 12	16;	echo "7. Config"
+	tput cup 13	16;	echo "*. Exit"
+
+	tput bold #set bold mode
+	tput cup 15 16; read -n 1 -rsp "Enter your choice [1-7] " choice
+	tput clear #clear the screen
+	tput sgr0
+
+	case $choice in
+	1) # background
+		if [[ $(ps aux | grep clash-lastest | wc -l) == 1 ]]
+		then
+			if [[ ! -x "$install_dir/clash-lastest" ]]
+			then
+				message "Clash NOT Installed"
+			else
+				clash-lastest  > /dev/null 2>&1 &
+				message "Clash is Running in Background now"
+			fi
+		else
+			message "Clash is Running in Other Way"
+		fi
+	;;
+	2) # run
+		if [[ $(ps aux | grep clash-lastest | wc -l) == 1 ]]
+		then
+			if [[ ! -x "$install_dir/clash-lastest" ]]
+			then
+				message "Clash NOT Installed"
+			else
+				trap "ps aux | grep clash-lastest | awk '{print "kill "$2}' | sh" 2
+				tput clear
+				clash-lastest
+				trap "tput rmcup&&exit" 2
+			fi
+		else
+			message "Clash is Running in Other Way"
+		fi
+	;;
+	3) # kill
+		if [[ $(ps aux | grep clash-lastest | wc -l) == 1 ]]
+		then
+			message "Clash Not Running"
+		else	
+			ps aux | grep clash- | awk '{print "kill "$2}' | sh
+			message "Cleaned up"
+		fi
+	;;
+	4) # update
+		if [[ ! -x "$install_dir/clash-lastest" ]]
+		then
+			message "Clash NOT Installed"
+		else
+			echo checking...
+			lastest=$(wget -qcO- https://api.github.com/repos/Dreamacro/clash/releases | grep -Gom1 "https.*$architecture.*gz")
+			echo current version is $($install_dir/clash-lastest -v).
+			echo lastest version is $(echo $lastest | grep -Go "$architecture.*\.")
+			read -n 1 -rsp "download?(y/n)" update
+			if [[ $update == "y" ]]
+			then
+				sudo mv -f clash-lastest clash-old
+				wget -qcO- $lastest | gunzip -c | sudo tee clash-lastest
+				sudo chmod +x clash-lastest
+				message "Update Successfully"
+			fi
+		fi
+	;;
+	5) #rollback
+		if [ ! -x "$(dirname "$0")/clash-old" ]
+		then
+			message "Old Clash NOT exist"
+		else
+			sudo mv -f clash-old clash-lastest
+			message "Rollback Successfully"
+		fi
+	;;
+	6) #install
+		if [ ! -x "$install_dir/clash" ]
+		then
+			#get system architecture
+			if [[ $architecture == "" ]]
+			then
+				architectures=(
+					darwin-amd64
+					freebsd-amd64
+					linux-amd64
+					linux-armv6
+					linux-armv5
+					freebsd-386
+					linux-mipsle-hardfloat
+					linux-mips64le
+					linux-armv7
+					linux-386
+					linux-mipsle-softfloat
+					linux-mips64
+					linux-armv8
+					linux-mips-softfloat
+				)
+				tput cup 10	16;	echo -e '0.darwin-amd64\t\t1.freebsd-amd64\t\t2.linux-amd64\t\t\t3.linux-armv6'
+				tput cup 11	16;	echo -e '4.linux-armv5\t\t5.freebsd-386\t\t6.linux-mipsle-hardfloat\t7.linux-mips64le'
+				tput cup 12	16;	echo -e '8.linux-armv7\t\t9.linux-386\t\t10.linux-mipsle-softfloat\t11.linux-mips64'
+				tput cup 13	16;	echo -e '12.linux-armv8\t\t13.linux-mips-softfloat\n'
+				tput bold
+				tput cup 15 16; read -p 'Select your system architecture [0-13]' i
+				tput clear
+				tput sgr0
+				architecture=${architectures[i]}
+				sed -i "2c architecture=$architecture" $0
+				tput clear
+			fi
+			# get install dir
+			tput cup 16 16; read -p "please input install dir($install_dir): " i
+			if [[ $i != "" ]]
+			then
+				install_dir=$i
+			fi
+			if [[ ! -d $install_dir ]]
+			then
+				mkdir $install_dir
+			fi
+			# install self
+			sed "3c install_dir=$install_dir" $0 | sudo tee $install_dir/clash > /dev/null
+			chmod +x $install_dir/clash
+			message "pause"
+			# install clash
+			wget -qcO- $(wget -qcO- https://api.github.com/repos/Dreamacro/clash/releases | grep -Gom1 "https.*$architecture.*gz") | gunzip -c | sudo tee $install_dir/clash-lastest
+			chmod +x clash-lastest
+			message "Install Successfully"
+		else
+			tput bold #set bold mode
+			tput cup 15 16; read -n 1 -rsp "Uninstall?(y/n)" i
+			tput clear #clear the screen
+			tput sgr0
+			if [[ $i == "y" ]]
+			then
+				sudo rm $install_dir/clash*
+				message "Uninstall Successfully"
+			fi
+		fi
+	;;
+	7) #config
+		if [ ! -f "$HOME/.config/clash/config.yaml" ]
+		then
+			message "NOT Installed or Never Run"
+		else
+			vim "$HOME/.config/clash/config.yaml"
+		fi
+	;;
+	*) #exit
+		tput rmcup
+		exit
+	;;
+	esac
+done

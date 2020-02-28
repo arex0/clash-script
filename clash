@@ -101,7 +101,7 @@ do
 		fi
 	;;
 	5) #rollback
-		if [ ! -x "$(dirname "$0")/clash-old" ]
+		if [ ! -x "$install_path/clash-old" ]
 		then
 			message "Old Clash NOT exist"
 		else
